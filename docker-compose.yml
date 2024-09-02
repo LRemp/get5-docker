@@ -1,0 +1,76 @@
+version: "3.7"
+
+services:
+  redis:
+    image: redis:6
+    command: redis-server --requirepass Z3fZeK9W6jBfMJY
+    container_name: redis
+    restart: always
+
+  get5db:
+    image: yobasystems/alpine-mariadb
+    container_name: get5db
+    restart: always
+    environment:
+      - MYSQL_ROOT_PASSWORD=FJqXv2dd3TeFAn3
+      - MYSQL_DATABASE=get5
+      - MYSQL_USER=get5
+      - MYSQL_PASSWORD=FJqXv2dd3TeFAn3
+      - MYSQL_CHARSET=utf8mb4
+      - MYSQL_COLLATION=utf8mb4_general_ci
+    ports:
+      - 3306:3306
+
+  g5api:
+    image: ghcr.io/phlexplexico/g5api:latest
+    depends_on:
+      - get5db
+    container_name: G5API
+    ports:
+      - 3301:3301
+    volumes:
+      - ./public:/Get5API/public
+    environment:
+      - NODE_ENV=production
+      - PORT=3301
+      - DBKEY=0fc9c89ce985fa8066398b1be5c730f7 #CHANGME https://www.random.org/cgi-bin/randbyte?nbytes=16&format=h
+      - STEAMAPIKEY=FE315E4DAA500737EC827E9A77018971
+      - HOSTNAME=https://localhost
+      - SHAREDSECRET= Z3TLmUEVpvXdE5H7UdnEbNSySak9gj
+      - CLIENTHOME=https://localhost/
+      - APIURL=https://localhost/api
+      - SQLUSER=get5
+      - SQLPASSWORD=FJqXv2dd3TeFAn3
+      - SQLPORT=3306
+      - DATABASE=get5
+      - SQLHOST=get5db
+      - ADMINS=76561198154367261
+      - SUPERADMINS=76561198154367261
+      - REDISURL=redis://:Z3fZeK9W6jBfMJY@redis:6379
+      - REDISTTL=86400
+      - USEREDIS=true
+      - UPLOADDEMOS=true
+      - LOCALLOGINS=false
+    restart: always
+
+  g5v:
+    image: ghcr.io/phlexplexico/g5v:latest
+    depends_on:
+      - g5api
+    container_name: G5V-Front-End
+    restart: always
+    labels:
+      caddy: localhost
+      caddy.reverse_proxy: "{{upstreams}}"
+
+  nginx:
+    image: nginx:latest
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./proxy/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - g5api
+      - g5v
+    restart: always
