@@ -1,16 +1,17 @@
-version: "3.7"
-
 services:
   redis:
     image: redis:6
     command: redis-server --requirepass Z3fZeK9W6jBfMJY
     container_name: redis
+    networks:
+      - get5
     restart: always
-
   get5db:
     image: yobasystems/alpine-mariadb
     container_name: get5db
     restart: always
+    networks:
+      - get5
     environment:
       - MYSQL_ROOT_PASSWORD=FJqXv2dd3TeFAn3
       - MYSQL_DATABASE=get5
@@ -20,25 +21,28 @@ services:
       - MYSQL_COLLATION=utf8mb4_general_ci
     ports:
       - 3306:3306
-
+    volumes:
+      - ./get5db/mysql:/var/lib/mysql
   g5api:
-    image: ghcr.io/phlexplexico/g5api:latest
+    build: ./G5API
     depends_on:
       - get5db
     container_name: G5API
-    ports:
-      - 3301:3301
+    networks:
+      - get5
     volumes:
       - ./public:/Get5API/public
+    ports:
+      - 3301:3301
     environment:
       - NODE_ENV=production
       - PORT=3301
       - DBKEY=0fc9c89ce985fa8066398b1be5c730f7 #CHANGME https://www.random.org/cgi-bin/randbyte?nbytes=16&format=h
       - STEAMAPIKEY=FE315E4DAA500737EC827E9A77018971
-      - HOSTNAME=https://localhost
+      - HOSTNAME=https://your-domain.com
       - SHAREDSECRET= Z3TLmUEVpvXdE5H7UdnEbNSySak9gj
-      - CLIENTHOME=https://localhost/
-      - APIURL=https://localhost/api
+      - CLIENTHOME=https://your-domain.com
+      - APIURL=https://your-domain.com/api
       - SQLUSER=get5
       - SQLPASSWORD=FJqXv2dd3TeFAn3
       - SQLPORT=3306
@@ -52,25 +56,31 @@ services:
       - UPLOADDEMOS=true
       - LOCALLOGINS=false
     restart: always
-
   g5v:
-    image: ghcr.io/phlexplexico/g5v:latest
+    build:
+      context: ./G5V
+      dockerfile: DockerfileFull
     depends_on:
       - g5api
-    container_name: G5V-Front-End
+    container_name: G5V-panel
+    networks:
+      - get5
     restart: always
-    labels:
-      caddy: localhost
-      caddy.reverse_proxy: "{{upstreams}}"
 
   nginx:
-    image: nginx:latest
+    image: nginx:alpine
+    container_name: nginx_proxy
+    restart: always
     ports:
-      - "80:80"
-      - "443:443"
+      - "3080:80"
     volumes:
-      - ./proxy/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
       - g5api
       - g5v
-    restart: always
+    networks:
+      - get5
+
+networks:
+  get5:
+    driver: bridge

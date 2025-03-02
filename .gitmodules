@@ -1,0 +1,6 @@
+[submodule "G5V"]
+	path = G5V
+	url = https://github.com/LRemp/G5V
+[submodule "G5API"]
+	path = G5API
+	url = https://github.com/LRemp/G5API
